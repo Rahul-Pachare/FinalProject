@@ -32,7 +32,7 @@ const scanAndAddEmails = async () => {
         
         // Step 1: Fetch unread mail IDs
         const response = await axios.get(
-          "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&q=is:unread",
+          "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10&q=is:unread",
           {
             headers: { Authorization: `Bearer ${accessToken}` },
           }
