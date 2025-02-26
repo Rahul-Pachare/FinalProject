@@ -9,43 +9,59 @@ import ApiError from '../utils/ApiError.js';
  * @returns {Object} - Updated user object with fresh tokens
  */
 export const refreshTokenIfNeeded = async (user) => {
-  try {
-    if (!user || !user.googleTokens) {
-      throw new ApiError(401, "Invalid user or missing tokens");
+    try {
+      if (!user || !user.googleTokens) {
+        throw new ApiError(401, "Invalid user or missing tokens");
+      }
+  
+      const { expiryDate, refreshToken } = user.googleTokens;
+      const currentTime = new Date();
+      
+      // Check if token is expired or about to expire (within 5 minutes)
+      const isExpired = new Date(expiryDate) <= new Date(currentTime.getTime() + 5 * 60 * 1000);
+      
+      if (isExpired && refreshToken) {
+        try {
+          // Set the refresh token in oauth2Client
+          oauth2Client.setCredentials({
+            refresh_token: refreshToken
+          });
+          
+          // Get fresh tokens
+          const { tokens } = await oauth2Client.refreshAccessToken();
+          
+          // Update user in database with new tokens
+          user.googleTokens = {
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token || refreshToken, // Keep old refresh token if new one not provided
+            expiryDate: tokens.expiry_date
+          };
+          
+          await user.save();
+        } catch (tokenError) {
+          // Check if this is an invalid_grant error
+          if (tokenError.message?.includes('invalid_grant') || 
+              tokenError.response?.data?.error === 'invalid_grant') {
+            
+            // Mark the user as needing re-authentication
+            user.googleTokens.needsReauth = true;
+            await user.save();
+            
+            console.log(`User ${user.email} needs to re-authenticate with Google`);
+            throw new ApiError(401, "Authentication expired. Please log in again with Google.");
+          }
+          
+          // Rethrow other errors
+          throw tokenError;
+        }
+      }
+      
+      return user;
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      throw new ApiError(401, "Failed to refresh access token");
     }
-
-    const { expiryDate, refreshToken } = user.googleTokens;
-    const currentTime = new Date();
-    
-    // Check if token is expired or about to expire (within 5 minutes)
-    const isExpired = new Date(expiryDate) <= new Date(currentTime.getTime() + 5 * 60 * 1000);
-    
-    if (isExpired && refreshToken) {
-      // Set the refresh token in oauth2Client
-      oauth2Client.setCredentials({
-        refresh_token: refreshToken
-      });
-      
-      // Get fresh tokens
-      const { tokens } = await oauth2Client.refreshAccessToken();
-      
-      // Update user in database with new tokens
-      user.googleTokens = {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || refreshToken, // Keep old refresh token if new one not provided
-        expiryDate: tokens.expiry_date
-      };
-      
-      await user.save();
-    }
-    
-    return user;
-  } catch (error) {
-    console.error("Token refresh error:", error);
-    throw new ApiError(401, "Failed to refresh access token");
-  }
-};
-
+  };
 /**
  * Middleware to ensure user has valid tokens before processing request
  */
