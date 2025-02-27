@@ -12,7 +12,7 @@ export const refreshTokenIfNeeded = async (user) => {
       if (!user || !user.googleTokens) {
         throw new ApiError(401, "Invalid user or missing tokens");
       }
-  
+ 
       const { expiryDate, refreshToken } = user.googleTokens;
       const currentTime = new Date();
       
@@ -23,15 +23,16 @@ export const refreshTokenIfNeeded = async (user) => {
         try {
           // Set the refresh token in oauth2Client
           oauth2Client.setCredentials({
+            
             refresh_token: refreshToken
           });
           
           // Get fresh tokens
           const { tokens } = await oauth2Client.refreshAccessToken();
-          
+          console.log("object",tokens)
           // Add proper error handling for the tokens response
           if (!tokens || !tokens.access_token) {
-            throw new ApiError(401, "Invalid response from token refresh");
+            throw new ApiError(401, "Invalid response from token refresh",tokens);
           }
           
           // Update user in database with new tokens
