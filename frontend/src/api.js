@@ -67,3 +67,13 @@ export const fetchUserDetails = async (token) => {
     return data;
    
   };
+
+  export const ManunalScan = async () => {
+    const response = await axios.post(`${API_BASE_URL}/api/mails/trigger-scan`,
+      { }, {
+        
+      });
+    const data = response.data
+    return data;
+   
+  };

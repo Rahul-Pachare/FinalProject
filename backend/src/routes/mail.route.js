@@ -23,7 +23,6 @@ router.route("/deletemail").post(authenticateUser, deleteMailByID);
 
 // Add a manual trigger for the scheduler
 router.route("/trigger-scan").post(
-  authenticateUser,
   asyncHandler(async (req, res) => {
     // Start the scan process in the background
     manualScanEmails().catch(err => console.error("Manual scan error:", err));
