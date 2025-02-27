@@ -77,3 +77,11 @@ export const fetchUserDetails = async (token) => {
     return data;
    
   };
+  export const getsafemails = async (page,token) => {
+    const response = await axios.get(`${API_BASE_URL}/api/mails/get/safemail?page=${page}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    console.log(response.data)
+    return response.data;
+   
+  };

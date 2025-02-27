@@ -183,6 +183,25 @@ if (!maildata) {
   .status(200)
   .json(new ApiResponse(200,{page,limit,totalPages,maildata},"mails(maybe spam) fetched successfully"))
 })
+const getSafeMails = asyncHandler(async(req,res) =>{
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit
+  const userid = req.user._id;
+  const maildata =  await Mail.find({owner : userid, status:"ham"}).sort({ createdAt: -1 }).skip(skip).limit(limit);
+ 
+  const totalmails = await Mail.find({owner : userid, status:"ham"}).countDocuments();
+
+  // Calculate total number of pages
+  const totalPages = Math.ceil(totalmails / limit);
+
+if (!maildata) {
+  throw new ApiError(400,"cant fetched may be spma mails ")
+}
+  return res
+  .status(200)
+  .json(new ApiResponse(200,{page,limit,totalPages,maildata},"mails(maybe spam) fetched successfully"))
+})
 
 const getMailbyID = asyncHandler(async(req,res) =>{
   const user = req.user;
@@ -287,5 +306,6 @@ export {  getUnreadMails,
           getMaybeSpamMails,
           getMailbyID,
           UpdateMailStatus,
-          deleteMailByID
+          deleteMailByID,
+          getSafeMails
 };

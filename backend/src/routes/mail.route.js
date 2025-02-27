@@ -6,6 +6,7 @@ import {
   deleteMailByID, 
   getMailbyID, 
   getMaybeSpamMails, 
+  getSafeMails, 
   getUnreadMails 
 } from "../controllers/mail.controller.js";
 import { manualScanEmails } from "../schedulers/mailScheduler.js";
@@ -17,6 +18,7 @@ const router = Router();
 router.route("/getmails").get(authenticateUser, getUnreadMails);
 router.route("/scanmails").get(authenticateUser, addMails);
 router.route("/get/maybespam").get(authenticateUser, getMaybeSpamMails);
+router.route("/get/safemail").get(authenticateUser, getSafeMails);
 router.route("/get/mailbyid").get(authenticateUser, getMailbyID);
 router.route("/updatemail").get(authenticateUser, UpdateMailStatus);
 router.route("/deletemail").post(authenticateUser, deleteMailByID);
