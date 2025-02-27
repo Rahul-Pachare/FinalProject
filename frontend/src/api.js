@@ -85,3 +85,11 @@ export const fetchUserDetails = async (token) => {
     return response.data;
    
   };
+  export const gettrashmails = async (token) => {
+    const response = await axios.get(`${API_BASE_URL}/api/mails/get/trashmail`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    console.log(response.data)
+    return response.data;
+   
+  };

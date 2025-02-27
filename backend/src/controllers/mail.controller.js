@@ -203,6 +203,22 @@ if (!maildata) {
   .json(new ApiResponse(200,{page,limit,totalPages,maildata},"mails(maybe spam) fetched successfully"))
 })
 
+const getTrashMails = asyncHandler(async(req,res) =>{
+  
+  const userid = req.user._id;
+  const maildata =  await Trash.find({owner : userid, }).sort({ createdAt: -1 });
+ 
+  const page = 1
+  // Calculate total number of pages
+
+if (!maildata) {
+  throw new ApiError(400,"cant fetched may be spma mails ")
+}
+  return res
+  .status(200)
+  .json(new ApiResponse(200,{page,maildata},"mails(maybe spam) fetched successfully"))
+})
+
 const getMailbyID = asyncHandler(async(req,res) =>{
   const user = req.user;
   const accessToken = user.googleTokens.accessToken;
@@ -307,5 +323,6 @@ export {  getUnreadMails,
           getMailbyID,
           UpdateMailStatus,
           deleteMailByID,
-          getSafeMails
+          getSafeMails,
+          getTrashMails
 };

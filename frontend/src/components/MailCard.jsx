@@ -80,7 +80,9 @@ function MailCard({ mailid }) {
             try {
                 setLoading(true);
                 const mailResponse = await getmailwithID(mailid.messageID, token);
+                console.log(mailResponse.data)
                 setData(mailResponse.data);
+              console.log('data..',data)
             } catch (error) {
                 console.error("Error fetching mail details:", error);
             } finally {
@@ -92,9 +94,9 @@ function MailCard({ mailid }) {
     }, [mailid, token]);
     
     // Extract sender info (this is just an example, adapt to your data structure)
-    const sender = data.headers?.from || data.headers?.From || "Unknown Sender";
-    const subject = data.headers?.subject || data.headers?.Subject || "No Subject";
-    const date = data.headers?.date || data.headers?.Date || "Unknown Date";
+    const sender = data.payload?.headers?.[19]?.value || "Unknown Sender";
+    const subject = data.payload?.headers?.[23]?.value || "No Subject";
+    const date =data.payload?.headers?.[20]?.value|| "Unknown Date";
     
     if (loading && !data.snippet) {
         return (
