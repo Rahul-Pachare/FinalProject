@@ -63,6 +63,18 @@ const scanAndAddEmails = async () => {
           const mailExists = await Mail.findOne({ messageID: message.id });
           
           if (!mailExists) {
+
+            //get the mail data
+            const mailResponse = await axios.get(
+              `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+              }
+            );
+            const data = mailResponse.data;
+          
+              console.log(data)
+              //endddddd...
             const spamScore = spam_detection();
             let status = "ham";
             

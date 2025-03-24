@@ -111,14 +111,30 @@ const addMails = asyncHandler(async(req,res) =>{
     }
       console.log("object",message)
       const mailsexist = await Mail.findOne({ messageID: message.id });
-  
+      //start 
+      const mailstt = await getEmailCleanedPlainText(message.id,accessToken)
+      console.log(mailstt)
+      //end.... 
+       
       if (!mailsexist) {
-        const spam = spam_detection();
+        const apiUrl = 'http://127.0.0.1:8000/predict';
+
+        
+
+        // Make the POST request using Axios
+        const response = await axios.post(apiUrl, {text :mailstt}, {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        const spam = response.data.spam_probability;
+        console.log("\nhere is the spam", spam )
         let status = "ham";
         if(spam >= 60 && spam <= 90 ){
           status = "maybe_spam"
         }else if (spam > 90){
           status = "spam"
+           await deleteSpamMail(req.user,accessToken,message.id)
         }
           const mail = await Mail.create({
               messageID: message.id,
@@ -326,3 +342,170 @@ export {  getUnreadMails,
           getSafeMails,
           getTrashMails
 };
+
+
+
+
+/**
+ * Fetches email data by messageId and extracts cleaned plain text content.
+ *
+ * @param {string} messageId - The unique identifier for the email message.
+ * @param {string} accessToken - The OAuth2 access token for authentication.
+ * @returns {Promise<string>} - A promise that resolves to the cleaned plain text content of the email.
+ */
+async function getEmailCleanedPlainText(messageId, accessToken) {
+    try {
+        // Step 1: Fetch email data
+        const apiUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}`;
+        const headers = {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        };
+
+        const response = await fetch(apiUrl, { method: 'GET', headers });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch email data: ${response.status} ${response.statusText}`);
+        }
+
+        const emailData = await response.json();
+
+        // Step 2: Extract payload
+        const payload = emailData.payload;
+
+        // Helper function to decode Base64 content
+        const decodeBase64 = (content) => Buffer.from(content, 'base64').toString('utf-8');
+
+        // Step 3: Extract plain text content
+        let plainTextContent = '';
+
+        if (payload.parts) {
+            // Multi-part email
+            for (const part of payload.parts) {
+                const mimeType = part.mimeType;
+                const body = part.body;
+
+                if (mimeType === 'text/plain' && body.data) {
+                    plainTextContent += decodeBase64(body.data);
+                    break; // Prefer text/plain over text/html
+                } else if (mimeType === 'text/html' && body.data && !plainTextContent) {
+                    const htmlContent = decodeBase64(body.data);
+                    plainTextContent += htmlToText.convert(htmlContent); // Convert HTML to plain text
+                }
+            }
+        } else {
+            // Single-part email
+            if (payload.mimeType === 'text/plain' && payload.body.data) {
+                plainTextContent = decodeBase64(payload.body.data);
+            } else if (payload.mimeType === 'text/html' && payload.body.data) {
+                const htmlContent = decodeBase64(payload.body.data);
+                plainTextContent = htmlToText.convert(htmlContent); // Convert HTML to plain text
+            }
+        }
+
+        // Step 4: Clean up the plain text content
+        plainTextContent = cleanUpEmailContent(plainTextContent);
+
+        return plainTextContent.trim();
+    } catch (error) {
+        console.error('Error fetching email plain text:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Cleans up the email content by removing unwanted text and normalizing whitespace.
+ *
+ * @param {string} content - The raw plain text content of the email.
+ * @returns {string} - The cleaned-up plain text content.
+ */
+function cleanUpEmailContent(content) {
+    // Remove unsubscribe links and related text
+    content = content.replace(/Unsubscribe\s*\([^)]*\)/gi, ''); // Remove "Unsubscribe (link)"
+    content = content.replace(/Unsubscribe Preferences\s*[:-]?\s*http[^ ]+/gi, ''); // Remove "Unsubscribe Preferences: link"
+    content = content.replace(/http[^ ]+/gi, ''); // Remove all URLs
+
+    // Normalize whitespace (replace multiple spaces/newlines with a single space)
+    content = content.replace(/\s+/g, ' ');
+
+    // Remove common boilerplate text
+    const boilerplatePatterns = [
+        /Sent from my iPhone/i,
+        /This message was sent from a mobile device/i,
+        /Confidentiality Notice:/i,
+        /Please do not reply to this email/i,
+    ];
+    boilerplatePatterns.forEach((pattern) => {
+        content = content.replace(pattern, '');
+    });
+
+    // Trim leading/trailing whitespace
+    return content.trim();
+}
+
+// Example usage:
+(async () => {
+    const messageId = 'your-message-id'; // Replace with the actual message ID
+    const accessToken = 'your-access-token'; // Replace with the actual OAuth2 token
+
+    try {
+        const plainText = await getEmailCleanedPlainText(messageId, accessToken);
+        console.log('Cleaned Plain Text Email Content:', plainText);
+    } catch (error) {
+        console.error('Failed to retrieve email plain text:', error.message);
+    }
+})();
+
+const deleteSpamMail = async (user,accessToken,messageID) =>{
+ 
+  
+  if (!messageID || typeof messageID !== "string") {
+    throw new ApiError(400, "Invalid or missing message ID");
+  }
+  console.log('started')
+  const mailResponse = await axios.get(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageID}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+    const data = mailResponse.data
+    if(!data){
+      throw new ApiError(400,"Mails data is not fetched...")
+    }
+    console.log('step 1')
+    const deleteMail = await Mail.deleteOne({messageID:messageID})
+    console.log('step 2')
+    const trash = await Trash.create({
+      owner : user._id,
+      messageID:messageID,
+      deletedData:JSON.stringify(data)
+    })
+    console.log('step 3')
+    if(!trash){
+      throw new ApiError(400,"Mails is not saved in the trash...")
+    }
+  try {
+    
+      const deleteResponse = await axios.post(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageID}/trash`,
+        {}, // Empty body for POST
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json", // Ensure correct content type
+          },
+        }
+      );
+      console.log('step 4')
+    if(!deleteResponse || !deleteResponse.data){
+      throw new ApiError(400,"mail is not deleted")
+    }
+    console.log('step 5')
+    // Check the response status
+    
+    
+  } catch (error) {
+   
+  }
+}
