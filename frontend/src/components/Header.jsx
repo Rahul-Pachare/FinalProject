@@ -10,13 +10,14 @@ function Header() {
     },[token])
     const userlogout = ()=>{
             localStorage.removeItem("token")
+            
     }
 
   return (
     <div className='bg-gradient-to-br from-blue-50 to-gray-200 flex justify-between items-center'>
       <div className='flex'>
         <span className='flex align-middle'>
-        <img src="../public/spamguard.png" alt="" className='w-20 h-20 object-contain' /><span className="text-red-500 font-bold  text-4xl self-center">Spam</span>
+        <img src="/spamguard.png" alt="" className='w-20 h-20 object-contain' /><span className="text-red-500 font-bold  text-4xl self-center">Spam</span>
           <span className="text-[#4c4c4c] font-sans text-4xl self-center">Guard</span>
         </span>
         

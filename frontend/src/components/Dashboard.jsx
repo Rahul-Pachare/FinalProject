@@ -108,7 +108,6 @@ function Dashboard() {
        await scanMails(token);
        
        // For demonstration, we'll split emails into 3 categories
-       // In a real app, you would use API calls to get the specific categories
        fetchMailCategories();
     }
     
@@ -134,27 +133,27 @@ function Dashboard() {
         run();
     }, [navigate]);
     
-    function cyberChefLike(input, recipe) {
-        let output = input;
+    // function cyberChefLike(input, recipe) {
+    //     let output = input;
         
-        for (const step of recipe) {
-            if (step.op === "From Base64") {
-                output = fromBase64(output);
-            }
-        }
+    //     for (const step of recipe) {
+    //         if (step.op === "From Base64") {
+    //             output = fromBase64(output);
+    //         }
+    //     }
         
-        return output;
-    }
+    //     return output;
+    // }
     
-    function fromBase64(str) {
-        str = str.replace(/-/g, '+').replace(/_/g, '/');
-        return atob(str);
-    }
+    // function fromBase64(str) {
+    //     str = str.replace(/-/g, '+').replace(/_/g, '/');
+    //     return atob(str);
+    // }
     
-    const recipe = [
-        { "op": "From Base64",
-          "args": ["A-Za-z0-9+\\-=", false, false] }
-    ];
+    // const recipe = [
+    //     { "op": "From Base64",
+    //       "args": ["A-Za-z0-9+\\-=", false, false] }
+    // ];
    
     return (
         <div className="min-h-screen bg-gray-100">
@@ -167,7 +166,7 @@ function Dashboard() {
                                 <img 
                                     src={data.data.picture} 
                                     alt="Profile" 
-                                    className="w-12 h-12 rounded-full border-2 border-red-500"
+                                    className="w-12 h-12 rounded-full border-1 "
                                 />
                             )}
                             <div>
@@ -243,7 +242,7 @@ function Dashboard() {
                                 <div className="space-y-4">
                                     {spamMails.map(mail => (
                                         <div key={mail._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                                            <MailCard mailid={mail} />
+                                            <MailCard mailid={mail} type='maybespam' />
                                         </div>
                                     ))}
                                 </div>
@@ -273,18 +272,18 @@ function Dashboard() {
                                 <div className="space-y-4">
                                     {trashMails.map(mail => (
                                         <div key={mail._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                                            <MailCard mailid={mail} />
+                                            <MailCard mailid={mail} type='trash' />
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-10">
-                                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
-                                    <h3 className="mt-2 text-sm font-medium text-gray-900">No safe emails</h3>
-                                    <p className="mt-1 text-sm text-gray-500">Connect your email to see safe messages here.</p>
-                                </div>
+                              <div className="text-center py-10">
+                              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              <h3 className="mt-2 text-sm font-medium text-gray-900">Trash is empty</h3>
+                              <p className="mt-1 text-sm text-gray-500">No emails in trash at the moment.</p>
+                          </div>
                             )}
                             {/* <div className="text-center py-10">
                                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -310,18 +309,18 @@ function Dashboard() {
                                 <div className="space-y-4">
                                     {safeMails.map(mail => (
                                         <div key={mail._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                                            <MailCard mailid={mail} />
+                                            <MailCard mailid={mail} type='safe'/>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-10">
-                                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
-                                    <h3 className="mt-2 text-sm font-medium text-gray-900">No safe emails</h3>
-                                    <p className="mt-1 text-sm text-gray-500">Connect your email to see safe messages here.</p>
-                                </div>
+                              <div className="text-center py-10">
+                              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <h3 className="mt-2 text-sm font-medium text-gray-900">No safe emails</h3>
+                              <p className="mt-1 text-sm text-gray-500">Connect your email to see safe messages here.</p>
+                          </div>
                             )}
                             {/* <div className="text-center py-10">
                                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

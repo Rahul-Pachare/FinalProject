@@ -1,55 +1,58 @@
-// import React, { useEffect, useState } from 'react'
-// import axios from 'axios'
-// import { deleteMailwithID, getmailwithID, updateMail } from '../api';
-// function MailCard({mailid}) { 
-//     const [data,setdata] = useState({});
-//     let token  = "";
-//     if(localStorage.getItem("token")){
-//          token  = localStorage.getItem("token")
-        
-//     }
-//     const updatemail = async ()=>{
-//       const see = await updateMail(mailid._id,"ham",0,token)
-//     }
-//     useEffect(()=>{
-//         const getmail =async (mailid,accessToken) =>{
-//             const mailResponse = await getmailwithID(mailid,accessToken);
-//             const data = mailResponse.data
-//             setdata(data)
-//         }
-//          getmail(mailid.messageID,token)
-//         console.log("data is here",data)
-//     },[mailid,token])
-    
-//    const onDelete=async()=>{
-//     const res = await deleteMailwithID(mailid.messageID,token)
-//     console.log(res)
-//    }
-//   return (
-//     <div>
-//    {data.snippet}
-//    <span onClick={updatemail}>safe</span>
-//    <button class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onClick={onDelete}>delete</button>
-//     </div>
-//   )
-// }
-
-// export default MailCard
 
 import React, { useEffect, useState } from 'react'
 import { deleteMailwithID, getmailwithID, updateMail } from '../api';
 
-function MailCard({ mailid }) { 
+function MailCard({ mailid ,type}) { 
     const [data, setData] = useState({});
     const [loading, setLoading] = useState(true);
-    const [expanded, setExpanded] = useState(false);
+    const [showFullEmail, setShowFullEmail] = useState(false);
+    const [mail, setMail] = useState('');
+    const [plainText, setPlainText] = useState('');
     
     let token = "";
     if(localStorage.getItem("token")){
         token = localStorage.getItem("token");
     }
     
-    const updateMail = async (newStatus) => {
+    // Base64 decoding function
+    function fromBase64(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/'); // Handle URL-safe Base64
+        return atob(str);
+    }
+    
+    // Extract text from HTML content
+    function extractTextFromHTML(html) {
+        if (!html) return '';
+        
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            return doc.body.textContent.replace(/\s+/g, ' ').trim(); // Removes extra spaces
+        } catch (error) {
+            console.error("Error extracting text from HTML:", error);
+            return html || '';
+        }
+    }
+    
+    // Decode email content
+    const decodeEmailContent = (encodedData) => {
+        if (!encodedData) return { html: '', text: '' };
+        
+        try {
+            const decodedHtml = fromBase64(encodedData);
+            const plainText = extractTextFromHTML(decodedHtml);
+            
+            return {
+                html: decodedHtml,
+                text: plainText
+            };
+        } catch (error) {
+            console.error("Error decoding email content:", error);
+            return { html: '', text: '' };
+        }
+    };
+    
+    const markMailStatus = async (newStatus) => {
         try {
             setLoading(true);
             const confidence = newStatus === 'ham' ? 0 : 100;
@@ -80,9 +83,15 @@ function MailCard({ mailid }) {
             try {
                 setLoading(true);
                 const mailResponse = await getmailwithID(mailid.messageID, token);
-                console.log(mailResponse.data)
                 setData(mailResponse.data);
-              console.log('data..',data)
+                
+                // Decode email content when data is received
+                const emailContent = getEmailContent(mailResponse.data);
+                if (emailContent) {
+                    const decoded = decodeEmailContent(emailContent);
+                    setMail(decoded.html);
+                    setPlainText(decoded.text);
+                }
             } catch (error) {
                 console.error("Error fetching mail details:", error);
             } finally {
@@ -93,10 +102,60 @@ function MailCard({ mailid }) {
         getMailDetails();
     }, [mailid, token]);
     
-    // Extract sender info (this is just an example, adapt to your data structure)
-    const sender = data.payload?.headers?.[19]?.value || "Unknown Sender";
-    const subject = data.payload?.headers?.[23]?.value || "No Subject";
-    const date =data.payload?.headers?.[20]?.value|| "Unknown Date";
+    // Get email content from payload
+    const getEmailContent = (data) => {
+        if (!data || !data.payload) return null;
+        
+        // Check for plain body data
+        if (data.payload.body && data.payload.body.data) {
+            return data.payload.body.data;
+        }
+        
+        // Check for parts
+        if (data.payload.parts) {
+            // First try HTML part
+            const htmlPart = data.payload.parts.find(part => part.mimeType === 'text/html');
+            if (htmlPart && htmlPart.body && htmlPart.body.data) {
+                return htmlPart.body.data;
+            }
+            
+            // Then try plain text part
+            const textPart = data.payload.parts.find(part => part.mimeType === 'text/plain');
+            if (textPart && textPart.body && textPart.body.data) {
+                return textPart.body.data;
+            }
+            
+            // Check for multi-level parts (for multipart/alternative inside multipart/mixed)
+            for (const part of data.payload.parts) {
+                if (part.parts) {
+                    const nestedHtmlPart = part.parts.find(p => p.mimeType === 'text/html');
+                    if (nestedHtmlPart && nestedHtmlPart.body && nestedHtmlPart.body.data) {
+                        return nestedHtmlPart.body.data;
+                    }
+                    
+                    const nestedTextPart = part.parts.find(p => p.mimeType === 'text/plain');
+                    if (nestedTextPart && nestedTextPart.body && nestedTextPart.body.data) {
+                        return nestedTextPart.body.data;
+                    }
+                }
+            }
+        }
+        
+        return null;
+    };
+    
+    // Extract sender info
+    const sender = data.payload?.headers?.find(h => h.name === "From")?.value || 
+                  data.payload?.headers?.find(h => h.name.toLowerCase() === "from")?.value || 
+                  "Unknown Sender";
+    
+    const subject = data.payload?.headers?.find(h => h.name === "Subject")?.value || 
+                   data.payload?.headers?.find(h => h.name.toLowerCase() === "subject")?.value || 
+                   "No Subject";
+    
+    const date = data.payload?.headers?.find(h => h.name === "Date")?.value || 
+                data.payload?.headers?.find(h => h.name.toLowerCase() === "date")?.value || 
+                "Unknown Date";
     
     if (loading && !data.snippet) {
         return (
@@ -109,7 +168,9 @@ function MailCard({ mailid }) {
     }
     
     return (
-        <div className="flex flex-col space-y-3">
+        <div 
+            className={`flex flex-col space-y-3 p-4 border rounded-lg ${showFullEmail ? 'shadow-lg bg-white' : 'hover:bg-gray-50'}`}
+        >
             {/* Email Header */}
             <div className="flex justify-between items-start">
                 <div>
@@ -119,31 +180,47 @@ function MailCard({ mailid }) {
                 </div>
                 <div className="flex items-center space-x-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        Spam Confidence: {mailid.spam_confidence || "Unknown"}%
+                       {type != 'trash'?<p> Spam Confidence: {mailid.spam_confidence || "Unknown"}%</p>:<div></div>}
                     </span>
                 </div>
             </div>
             
-            {/* Email Preview */}
-            <div className="text-sm text-gray-700">
-                <p className={expanded ? "" : "line-clamp-2"}>
-                    {data.snippet || "No preview available"}
-                </p>
-                {data.snippet && data.snippet.length > 120 && (
+            {/* Email Content */}
+            {showFullEmail ? (
+                <div className="mt-4 border-t pt-4">
+                    <div className="max-h-96 overflow-y-auto">
+                        {mail ? (
+                            <div dangerouslySetInnerHTML={{ __html: mail }} />
+                        ) : (
+                            <pre className="whitespace-pre-wrap text-sm text-gray-700">{plainText || data.snippet || "No content available"}</pre>
+                        )}
+                    </div>
                     <button 
-                        onClick={() => setExpanded(!expanded)}
+                        className="mt-4 text-red-500 hover:text-red-700 text-xs font-medium"
+                        onClick={() => setShowFullEmail(false)}
+                    >
+                        Show less
+                    </button>
+                </div>
+            ) : (
+                <div className="text-sm text-gray-700">
+                    <p className="line-clamp-2">
+                        {data.snippet || plainText || "No preview available"}
+                    </p>
+                    <button 
+                        onClick={() => setShowFullEmail(true)}
                         className="text-red-500 hover:text-red-700 text-xs mt-1 font-medium"
                     >
-                        {expanded ? "Show less" : "Show more"}
+                        Show more
                     </button>
-                )}
-            </div>
+                </div>
+            )}
             
             {/* Action Buttons */}
-            <div className="flex justify-end space-x-3 pt-2">
+            {type == 'maybespam'? <div className="flex justify-end space-x-3 pt-2">
                 <button 
                     className="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded transition"
-                    onClick={() => updateMail('ham')}
+                    onClick={() => markMailStatus('ham')}
                     disabled={loading}
                 >
                     Mark as Safe
@@ -155,7 +232,8 @@ function MailCard({ mailid }) {
                 >
                     Delete
                 </button>
-            </div>
+            </div>:<div></div>}
+           
         </div>
     );
 }
